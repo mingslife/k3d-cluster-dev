@@ -1,0 +1,16 @@
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+metadata:
+  name: dev
+kubeAPI:
+  host: "localhost"
+  hostIP: "127.0.0.1"
+  hostPort: "6443"
+image: rancher/k3s:v1.23.12-k3s1
+network: dev
+volumes:
+  - volume: /path/to/data:/data
+ports:
+  - port: 80:80
+    nodeFilters:
+      - loadbalancer
