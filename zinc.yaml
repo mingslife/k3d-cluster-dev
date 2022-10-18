@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zinc-secret
+  namespace: infra
+type: Opaque
+data:
+  user: YWRtaW4=
+  password: Q29tcGxleHBhc3MjMTIz
+  key: ""
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zinc
+  namespace: infra
+  labels:
+    app: zinc
+spec:
+  serviceName: zinc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zinc
+  template:
+    metadata:
+      labels:
+        app: zinc
+    spec:
+      containers:
+      - name: zinc
+        image: public.ecr.aws/zinclabs/zinc:0.3.3
+        ports:
+        - containerPort: 4080
+          name: web
+        env:
+        - name: GIN_MODE
+          value: "release"
+        - name: ZINC_DATA_PATH
+          value: "/data"
+        - name: ZINC_FIRST_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: zinc-secret
+              key: user
+        - name: ZINC_FIRST_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zinc-secret
+              key: password
+        - name: ZINC_TELEMETRY
+          value: "false"
+        - name: ZINC_SENTRY
+          value: "false"
+        - name: ZINC_SENTRY_DSN
+          value: ""
+        - name: ZINC_PROFILER
+          value: "false"
+        - name: ZINC_PROFILER_SERVER
+          value: ""
+        - name: ZINC_PROFILER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: zinc-secret
+              key: key
+        - name: ZINC_PLUGIN_GSE_ENABLE
+          value: "true"
+        volumeMounts:
+        - mountPath: /data
+          name: zinc-data
+      volumes:
+      - name: zinc-data
+        hostPath:
+          path: /data/zinc
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zinc
+  namespace: infra
+  labels:
+    app: zinc
+spec:
+  ports:
+  - port: 4080
+    name: web
+  selector:
+    app: zinc
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zinc
+  namespace: infra
+spec:
+  rules:
+  - host: "zinc.localhost"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: zinc
+            port:
+              number: 4080

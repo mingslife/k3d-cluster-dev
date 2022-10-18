@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: infra
+type: Opaque
+data:
+  redis.conf: cmVxdWlyZXBhc3MgcGFzcw==
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: infra
+  labels:
+    app: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0.4
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - mountPath: /data
+          name: redis-data
+        - mountPath: /usr/local/etc/redis
+          name: redis-conf
+          readOnly: true
+        command:
+        - redis-server
+        - /usr/local/etc/redis/redis.conf
+      volumes:
+      - name: redis-data
+        hostPath:
+          path: /data/redis
+          type: DirectoryOrCreate
+      - name: redis-conf
+        secret:
+          secretName: redis-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: infra
+  labels:
+    app: redis
+spec:
+  ports:
+  - port: 6379
+    name: redis
+  selector:
+    app: redis
