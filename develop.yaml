@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: develop
+  namespace: test
+  labels:
+    app: develop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: develop
+  template:
+    metadata:
+      labels:
+        app: develop
+    spec:
+      containers:
+      - name: go
+        image: golang:1.18-alpine3.16
+        resources: {}
+        ports:
+        - containerPort: 9090
+          name: web
+        env:
+        - name: GOPROXY
+          value: "https://goproxy.io,direct"
+        - name: GOSUMDB
+          value: "off"
+        volumeMounts:
+        - mountPath: /data
+          name: develop-data
+        - mountPath: /go
+          name: go-data
+        command:
+        - cat
+        tty: true
+      volumes:
+      - name: develop-data
+        hostPath:
+          path: /data/develop
+          type: DirectoryOrCreate
+      - name: go-data
+        hostPath:
+          path: /data/go
+          type: DirectoryOrCreate
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: develop
+#   namespace: test
+#   labels:
+#     app: develop
+# spec:
+#   ports:
+#   - port: 9090
+#     name: web
+#   selector:
+#     app: develop
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: develop
+#   namespace: test
+# spec:
+#   rules:
+#   - host: "develop.localhost"
+#     http:
+#       paths:
+#       - pathType: Prefix
+#         path: "/"
+#         backend:
+#           service:
+#             name: develop
+#             port:
+#               number: 9090
